@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Internal Dashboard Architecture</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap');
+
+  :root {
+    --bg: #0c0e14;
+    --surface: #141720;
+    --border: #252a38;
+    --accent: #4ade80;
+    --accent2: #38bdf8;
+    --accent3: #f59e0b;
+    --accent4: #c084fc;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --card-bg: #181c28;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    min-height: 100vh;
+    padding: 40px 24px;
+    background-image: radial-gradient(ellipse at 20% 0%, rgba(74,222,128,0.04) 0%, transparent 60%),
+                      radial-gradient(ellipse at 80% 100%, rgba(56,189,248,0.04) 0%, transparent 60%);
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 48px;
+    animation: fadeUp 0.6s ease both;
+  }
+
+  header .eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  header h1 {
+    font-size: 28px;
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+
+  header p {
+    color: var(--muted);
+    font-size: 13px;
+    margin-top: 8px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .arch {
+    max-width: 960px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  /* Layer */
+  .layer {
+    position: relative;
+    animation: fadeUp 0.6s ease both;
+  }
+  .layer:nth-child(1) { animation-delay: 0.1s; }
+  .layer:nth-child(2) { animation-delay: 0.2s; }
+  .layer:nth-child(3) { animation-delay: 0.3s; }
+  .layer:nth-child(4) { animation-delay: 0.4s; }
+  .layer:nth-child(5) { animation-delay: 0.5s; }
+
+  .layer-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+    padding-left: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .layer-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .layer-cards {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+
+  /* Arrow connector */
+  .connector {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 36px;
+    position: relative;
+  }
+
+  .connector::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 1px;
+    height: 100%;
+    background: linear-gradient(to bottom, var(--border), var(--border));
+    border-left: 1px dashed var(--border);
+  }
+
+  .connector-label {
+    background: var(--bg);
+    padding: 2px 10px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    z-index: 1;
+    position: relative;
+  }
+
+  /* Card */
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    flex: 1;
+    min-width: 160px;
+    cursor: pointer;
+    transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+  }
+
+  .card:hover::before { opacity: 1; }
+
+  .card.green::before { background: var(--accent); }
+  .card.blue::before { background: var(--accent2); }
+  .card.amber::before { background: var(--accent3); }
+  .card.purple::before { background: var(--accent4); }
+
+  .card:hover.green { border-color: rgba(74,222,128,0.4); }
+  .card:hover.blue { border-color: rgba(56,189,248,0.4); }
+  .card:hover.amber { border-color: rgba(245,158,11,0.4); }
+  .card:hover.purple { border-color: rgba(192,132,252,0.4); }
+
+  .card-icon {
+    font-size: 20px;
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  .card-title {
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: 4px;
+    color: var(--text);
+  }
+
+  .card-sub {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.5;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .card-badge {
+    display: inline-block;
+    margin-top: 8px;
+    font-size: 10px;
+    font-family: 'IBM Plex Mono', monospace;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+
+  .badge-green { background: rgba(74,222,128,0.1); color: var(--accent); }
+  .badge-blue { background: rgba(56,189,248,0.1); color: var(--accent2); }
+  .badge-amber { background: rgba(245,158,11,0.1); color: var(--accent3); }
+  .badge-purple { background: rgba(192,132,252,0.1); color: var(--accent4); }
+
+  /* Detail panel */
+  .detail-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin-top: 40px;
+    min-height: 120px;
+    animation: fadeUp 0.4s ease both;
+    animation-delay: 0.6s;
+  }
+
+  .detail-panel .dp-eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  .detail-panel h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  .detail-panel p {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.7;
+    max-width: 640px;
+  }
+
+  .detail-panel .tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  .tool-chip {
+    font-size: 11px;
+    font-family: 'IBM Plex Mono', monospace;
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    color: var(--text);
+    background: var(--card-bg);
+  }
+
+  .tool-chip span {
+    margin-right: 5px;
+  }
+
+  .placeholder {
+    text-align: center;
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    padding: 30px 0;
+  }
+
+  /* Legend */
+  .legend {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 32px;
+    animation: fadeUp 0.6s ease both;
+    animation-delay: 0.7s;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .legend-dot {
+    width: 8px; height: 8px;
+    border-radius: 2px;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">Software Architecture</div>
+  <h1>Internal Dashboard — Solo Startup</h1>
+  <p>Click any component to explore its details & recommended tools</p>
+</header>
+
+<div class="arch">
+
+  <!-- Layer 1: Client -->
+  <div class="layer">
+    <div class="layer-label">Client Layer</div>
+    <div class="layer-cards">
+      <div class="card blue" onclick="show('frontend')">
+        <span class="card-icon">🖥️</span>
+        <div class="card-title">React Frontend</div>
+        <div class="card-sub">SPA dashboard with role-based views, charts, data tables</div>
+        <span class="card-badge badge-blue">TypeScript + Vite</span>
+      </div>
+      <div class="card blue" onclick="show('auth-client')">
+        <span class="card-icon">🔐</span>
+        <div class="card-title">Auth UI</div>
+        <div class="card-sub">Login, SSO, session management, protected routes</div>
+        <span class="card-badge badge-blue">OAuth 2.0 / PKCE</span>
+      </div>
+      <div class="card blue" onclick="show('realtime-client')">
+        <span class="card-icon">⚡</span>
+        <div class="card-title">Real-time Client</div>
+        <div class="card-sub">Live notifications, presence, push updates</div>
+        <span class="card-badge badge-blue">WebSocket / SSE</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector"><div class="connector-label">HTTPS + WSS</div></div>
+
+  <!-- Layer 2: Gateway -->
+  <div class="layer">
+    <div class="layer-label">Gateway / Edge</div>
+    <div class="layer-cards">
+      <div class="card green" onclick="show('gateway')">
+        <span class="card-icon">🚪</span>
+        <div class="card-title">API Gateway</div>
+        <div class="card-sub">Rate limiting, JWT validation, routing, CORS</div>
+        <span class="card-badge badge-green">Nginx / Caddy</span>
+      </div>
+      <div class="card green" onclick="show('cdn')">
+        <span class="card-icon">🌍</span>
+        <div class="card-title">CDN / Static Host</div>
+        <div class="card-sub">Serves frontend bundle, caches assets globally</div>
+        <span class="card-badge badge-green">Cloudflare / Vercel</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector"><div class="connector-label">Internal Network</div></div>
+
+  <!-- Layer 3: Backend -->
+  <div class="layer">
+    <div class="layer-label">Application Layer</div>
+    <div class="layer-cards">
+      <div class="card amber" onclick="show('api')">
+        <span class="card-icon">⚙️</span>
+        <div class="card-title">REST / GraphQL API</div>
+        <div class="card-sub">Business logic, CRUD, data aggregation, validation</div>
+        <span class="card-badge badge-amber">Node + Fastify</span>
+      </div>
+      <div class="card amber" onclick="show('auth-server')">
+        <span class="card-icon">🛡️</span>
+        <div class="card-title">Auth Service</div>
+        <div class="card-sub">User management, JWT issuance, RBAC, MFA</div>
+        <span class="card-badge badge-amber">Lucia / Auth.js</span>
+      </div>
+      <div class="card amber" onclick="show('realtime-server')">
+        <span class="card-icon">📡</span>
+        <div class="card-title">Real-time Service</div>
+        <div class="card-sub">WebSocket server, pub/sub, notification dispatch</div>
+        <span class="card-badge badge-amber">Socket.io / Ably</span>
+      </div>
+      <div class="card amber" onclick="show('worker')">
+        <span class="card-icon">🔄</span>
+        <div class="card-title">Background Worker</div>
+        <div class="card-sub">Async jobs, emails, scheduled tasks, file processing</div>
+        <span class="card-badge badge-amber">BullMQ + Redis</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector"><div class="connector-label">Driver / SDK</div></div>
+
+  <!-- Layer 4: Data -->
+  <div class="layer">
+    <div class="layer-label">Data Layer</div>
+    <div class="layer-cards">
+      <div class="card purple" onclick="show('db')">
+        <span class="card-icon">🗄️</span>
+        <div class="card-title">Primary Database</div>
+        <div class="card-sub">Structured app data: users, records, settings, audit logs</div>
+        <span class="card-badge badge-purple">PostgreSQL + Prisma</span>
+      </div>
+      <div class="card purple" onclick="show('cache')">
+        <span class="card-icon">⚡</span>
+        <div class="card-title">Cache / Queue</div>
+        <div class="card-sub">Session store, job queues, ephemeral data, rate limits</div>
+        <span class="card-badge badge-purple">Redis</span>
+      </div>
+      <div class="card purple" onclick="show('storage')">
+        <span class="card-icon">📁</span>
+        <div class="card-title">File Storage</div>
+        <div class="card-sub">User uploads, exports, attachments — served via signed URLs</div>
+        <span class="card-badge badge-purple">S3 / R2</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector"><div class="connector-label">External APIs</div></div>
+
+  <!-- Layer 5: External -->
+  <div class="layer">
+    <div class="layer-label">External Services</div>
+    <div class="layer-cards">
+      <div class="card green" onclick="show('email')">
+        <span class="card-icon">✉️</span>
+        <div class="card-title">Email</div>
+        <div class="card-sub">Transactional emails, alerts</div>
+        <span class="card-badge badge-green">Resend / SES</span>
+      </div>
+      <div class="card green" onclick="show('monitoring')">
+        <span class="card-icon">📊</span>
+        <div class="card-title">Monitoring</div>
+        <div class="card-sub">Errors, logs, uptime, performance</div>
+        <span class="card-badge badge-green">Sentry + Grafana</span>
+      </div>
+      <div class="card green" onclick="show('identity')">
+        <span class="card-icon">👤</span>
+        <div class="card-title">Identity Provider</div>
+        <div class="card-sub">Google / GitHub SSO, SAML for enterprise</div>
+        <span class="card-badge badge-green">Google OAuth</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Detail Panel -->
+<div class="detail-panel" id="detail-panel">
+  <div class="dp-eyebrow">Component Details</div>
+  <div class="placeholder">👆 Click any component above to see details, tech options & tips</div>
+</div>
+
+<!-- Legend -->
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:var(--accent2)"></div>Client</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div>Gateway / Edge</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--accent3)"></div>Application</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--accent4)"></div>Data</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div>External</div>
+</div>
+
+<script>
+const details = {
+  frontend: {
+    title: "React Frontend",
+    desc: "A single-page app serving as the internal dashboard UI. Use Vite for fast dev builds and TanStack Query for data fetching and server state management. Component libraries like shadcn/ui let you move fast without fighting design decisions.",
+    tools: [
+      { icon: "⚛️", name: "React + TypeScript" },
+      { icon: "⚡", name: "Vite" },
+      { icon: "🔁", name: "TanStack Query" },
+      { icon: "🎨", name: "shadcn/ui + Tailwind" },
+      { icon: "📊", name: "Recharts / Tremor" },
+      { icon: "🧭", name: "React Router v6" }
+    ]
+  },
+  "auth-client": {
+    title: "Auth UI & Session Management",
+    desc: "Protect routes using a context-based auth guard. Store JWTs in memory (not localStorage) and use refresh token rotation via HTTP-only cookies. For internal tools, Google OAuth is usually sufficient — no password management needed.",
+    tools: [
+      { icon: "🔐", name: "OAuth 2.0 + PKCE" },
+      { icon: "🍪", name: "HTTP-only cookies" },
+      { icon: "🔒", name: "Protected Routes (React Router)" },
+      { icon: "🔑", name: "JWT in memory" }
+    ]
+  },
+  "realtime-client": {
+    title: "Real-time Client",
+    desc: "Connect to your WebSocket server on login. Subscribe to user-specific or room-based channels. For simple notifications, Server-Sent Events (SSE) are even easier — unidirectional and HTTP-native, no library needed.",
+    tools: [
+      { icon: "📡", name: "Socket.io client" },
+      { icon: "🔔", name: "React toast / notification lib" },
+      { icon: "💡", name: "Ably SDK (if managed)" },
+      { icon: "🌊", name: "EventSource (SSE fallback)" }
+    ]
+  },
+  gateway: {
+    title: "API Gateway",
+    desc: "For a solo startup, Caddy is excellent — zero-config HTTPS, simple reverse proxy, and automatic TLS. It sits in front of all backend services, validates JWT signatures on incoming requests, and enforces rate limits before traffic touches your app.",
+    tools: [
+      { icon: "🚪", name: "Caddy (recommended solo)" },
+      { icon: "🔒", name: "Let's Encrypt (auto TLS)" },
+      { icon: "🛡️", name: "JWT middleware" },
+      { icon: "⏱️", name: "Rate limiting (plugin)" }
+    ]
+  },
+  cdn: {
+    title: "CDN & Static Hosting",
+    desc: "Deploy your Vite build output to Vercel or Cloudflare Pages. Both have generous free tiers, automatic deployments from Git, and global edge caching. Your API lives separately, called over HTTPS.",
+    tools: [
+      { icon: "▲", name: "Vercel (easiest DX)" },
+      { icon: "☁️", name: "Cloudflare Pages (faster edge)" },
+      { icon: "🌐", name: "Custom domain + HTTPS" }
+    ]
+  },
+  api: {
+    title: "REST / GraphQL API",
+    desc: "Fastify is a great choice for solo builds — faster than Express, great TypeScript support, and excellent plugin ecosystem. Use Prisma as your ORM for type-safe database access. Structure routes by resource (/users, /files, /events).",
+    tools: [
+      { icon: "⚡", name: "Node.js + Fastify" },
+      { icon: "🗃️", name: "Prisma ORM" },
+      { icon: "✅", name: "Zod (input validation)" },
+      { icon: "📘", name: "Swagger / OpenAPI docs" },
+      { icon: "🐋", name: "Docker (containerized deploy)" }
+    ]
+  },
+  "auth-server": {
+    title: "Auth Service",
+    desc: "For a solo internal tool, use Lucia Auth or Auth.js — both handle sessions, OAuth providers, and RBAC without much boilerplate. Store sessions in your Postgres DB or Redis. Keep user roles simple: admin, editor, viewer.",
+    tools: [
+      { icon: "🔐", name: "Lucia Auth" },
+      { icon: "🔑", name: "Google OAuth provider" },
+      { icon: "👥", name: "RBAC: admin / editor / viewer" },
+      { icon: "📧", name: "Magic link fallback (Resend)" }
+    ]
+  },
+  "realtime-server": {
+    title: "Real-time Service",
+    desc: "Socket.io is the pragmatic solo choice — runs in the same Node process, scales to thousands of connections, and has rooms built in. For zero-ops, use Ably or Pusher which handle infrastructure entirely.",
+    tools: [
+      { icon: "📡", name: "Socket.io (self-hosted)" },
+      { icon: "☁️", name: "Ably (managed, generous free tier)" },
+      { icon: "🔴", name: "Redis Pub/Sub (multi-instance sync)" },
+      { icon: "🌊", name: "SSE for notification-only cases" }
+    ]
+  },
+  worker: {
+    title: "Background Worker",
+    desc: "BullMQ on Redis is the gold standard for Node.js job queues. Use it for sending emails, processing file uploads (thumbnails, parsing), report generation, and cron jobs. Start with 1 worker process, scale when needed.",
+    tools: [
+      { icon: "🐂", name: "BullMQ" },
+      { icon: "🔴", name: "Redis (job backend)" },
+      { icon: "⏰", name: "node-cron (scheduled tasks)" },
+      { icon: "📬", name: "Resend (email dispatch)" }
+    ]
+  },
+  db: {
+    title: "Primary Database — PostgreSQL",
+    desc: "Postgres is the right choice for 99% of internal tools. Use Prisma for schema management and type-safe queries. Enable row-level security (RLS) if you need per-user data isolation. Host on Supabase or Railway for easy solo setup.",
+    tools: [
+      { icon: "🐘", name: "PostgreSQL 16" },
+      { icon: "🗃️", name: "Prisma (schema + migrations)" },
+      { icon: "🛤️", name: "Railway (easy hosting)" },
+      { icon: "⚡", name: "Supabase (Postgres + extras)" },
+      { icon: "🔒", name: "Row Level Security (RLS)" }
+    ]
+  },
+  cache: {
+    title: "Redis — Cache & Queue",
+    desc: "Redis does double duty: it's your session store AND your BullMQ job queue backend. For rate limiting, cache it in Redis too. Use Redis Upstash for a serverless, pay-per-request option with no idle cost.",
+    tools: [
+      { icon: "🔴", name: "Redis 7" },
+      { icon: "☁️", name: "Upstash (serverless Redis)" },
+      { icon: "🐂", name: "BullMQ jobs backend" },
+      { icon: "🔑", name: "Session / JWT refresh store" }
+    ]
+  },
+  storage: {
+    title: "File Storage",
+    desc: "Store all user-uploaded files in S3-compatible object storage. Never serve files directly from your API — generate short-lived pre-signed URLs for uploads and downloads. Cloudflare R2 has no egress fees, making it ideal for startups.",
+    tools: [
+      { icon: "☁️", name: "Cloudflare R2 (no egress fees)" },
+      { icon: "🪣", name: "AWS S3 (standard alternative)" },
+      { icon: "🔗", name: "Pre-signed URLs (upload + fetch)" },
+      { icon: "🖼️", name: "Sharp (image resize in worker)" }
+    ]
+  },
+  email: {
+    title: "Transactional Email",
+    desc: "Use Resend for developer-friendly transactional email with React Email templates. Set up SPF, DKIM, and DMARC records on your domain to avoid spam folders. Send from noreply@yourdomain.com.",
+    tools: [
+      { icon: "📧", name: "Resend" },
+      { icon: "✉️", name: "React Email (templates)" },
+      { icon: "🔒", name: "SPF + DKIM + DMARC" }
+    ]
+  },
+  monitoring: {
+    title: "Monitoring & Observability",
+    desc: "Sentry catches frontend and backend errors with full stack traces. Add Grafana + Loki for log aggregation, or use Axiom for a simpler log search. Uptime Robot gives you free uptime alerts via email or Slack.",
+    tools: [
+      { icon: "🐛", name: "Sentry (errors)" },
+      { icon: "📊", name: "Grafana + Loki (logs)" },
+      { icon: "🔔", name: "Uptime Robot (alerts)" },
+      { icon: "📝", name: "Axiom (log search)" }
+    ]
+  },
+  identity: {
+    title: "Identity Provider",
+    desc: "For internal tools, Google OAuth covers most teams. Configure an OAuth app in Google Cloud Console, restrict to your company domain, and you get SSO for free. If you later need SAML or Okta, Auth.js supports it.",
+    tools: [
+      { icon: "🔵", name: "Google OAuth 2.0" },
+      { icon: "🐙", name: "GitHub OAuth (alt)" },
+      { icon: "🔐", name: "Domain restriction" },
+      { icon: "🏢", name: "Okta / SAML (future)" }
+    ]
+  }
+};
+
+function show(key) {
+  const d = details[key];
+  const panel = document.getElementById('detail-panel');
+  panel.innerHTML = `
+    <div class="dp-eyebrow">Component Details</div>
+    <h3>${d.title}</h3>
+    <p>${d.desc}</p>
+    <div class="tools">
+      ${d.tools.map(t => `<div class="tool-chip"><span>${t.icon}</span>${t.name}</div>`).join('')}
+    </div>
+  `;
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+</script>
+</body>
+</html>
